@@ -35,6 +35,22 @@ function generateUserId(ip, userAgent) {
   return crypto.createHash('md5').update(data).digest('hex');
 }
 
+
+function getIPLocation(ip) {
+  // 清理 IP 格式（去掉 ::ffff: 前缀）
+  const cleanIp = ip.replace('::ffff:', '').replace('::1', '127.0.0.1');
+  const ipHash = crypto.createHash('md5').update(cleanIp).digest('hex');
+  const locations = ['北京', '上海', '广州', '深圳', '杭州', '成都', '武汉', '西安', '南京', '重庆'];
+  const index = parseInt(ipHash.substring(0, 2), 16) % locations.length;
+  return locations[index];
+}
+
+// 生成 IP 短哈希（用于显示，取 IP 前 8 位）
+function generateIPShort(ip) {
+  const cleanIp = ip.replace('::ffff:', '').replace('::1', '127.0.0.1');
+  return crypto.createHash('md5').update(cleanIp).digest('hex').substring(0, 8);
+}
+
 // API: 提交状态
 app.post('/api/clock', (req, res) => {
   try {
@@ -76,7 +92,7 @@ app.post('/api/clock', (req, res) => {
       success: true,
       message: '打卡成功',
       userId,
-      rank: rank.rank
+      rank: rank
     });
   } catch (error) {
     console.error('Clock error:', error);
@@ -98,7 +114,7 @@ app.get('/api/stats', (req, res) => {
     
     // 最早下班
     const earliestStmt = db.prepare(`
-      SELECT user_id, MIN(timestamp) as earliest_time
+      SELECT ip_hash, MIN(timestamp) as earliest_time
       FROM clock_records
       WHERE status = '下班'
       AND DATE(timestamp) = DATE('now')
@@ -107,7 +123,7 @@ app.get('/api/stats', (req, res) => {
     
     // 最晚下班
     const latestStmt = db.prepare(`
-      SELECT user_id, MAX(timestamp) as latest_time
+      SELECT ip_hash, MAX(timestamp) as latest_time
       FROM clock_records
       WHERE status = '下班'
       AND DATE(timestamp) = DATE('now')
@@ -129,13 +145,15 @@ app.get('/api/stats', (req, res) => {
         moyu: stats.find(s => s.status === '摸鱼')?.count || 0,
         work: stats.find(s => s.status === '打工中')?.count || 0,
         xiaban: stats.find(s => s.status === '下班')?.count || 0,
-        earliest: (earliest && earliest.user_id) ? {
+        earliest: (earliest && earliest.ip_hash) ? {
           time: earliest.earliest_time,
-          user: earliest.user_id.substring(0, 8)
+          location: getIPLocation(earliest.ip_hash),
+          ipShort: generateIPShort(earliest.ip_hash)
         } : null,
-        latest: (latest && latest.user_id) ? {
+        latest: (latest && latest.ip_hash) ? {
           time: latest.latest_time,
-          user: latest.user_id.substring(0, 8)
+          location: getIPLocation(latest.ip_hash),
+          ipShort: generateIPShort(latest.ip_hash)
         } : null,
         total: total.total
       }
