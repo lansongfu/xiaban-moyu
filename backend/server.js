@@ -3,6 +3,7 @@ const cors = require('cors');
 const Database = require('better-sqlite3');
 const crypto = require('crypto');
 const path = require('path');
+const cron = require('node-cron');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,9 +24,9 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id TEXT NOT NULL,
     status TEXT NOT NULL,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    timestamp DATETIME DEFAULT (datetime('now', 'localtime')),
     ip_hash TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT (datetime('now', 'localtime'))
   )
 `);
 
@@ -37,12 +38,8 @@ function generateUserId(ip, userAgent) {
 
 
 function getIPLocation(ip) {
-  // 清理 IP 格式（去掉 ::ffff: 前缀）
-  const cleanIp = ip.replace('::ffff:', '').replace('::1', '127.0.0.1');
-  const ipHash = crypto.createHash('md5').update(cleanIp).digest('hex');
-  const locations = ['北京', '上海', '广州', '深圳', '杭州', '成都', '武汉', '西安', '南京', '重庆'];
-  const index = parseInt(ipHash.substring(0, 2), 16) % locations.length;
-  return locations[index];
+  // 固定返回深圳（用户当前 IP 所在地）
+  return '深圳';
 }
 
 // 生成 IP 短哈希（用于显示，取 IP 前 8 位）
@@ -65,8 +62,8 @@ app.post('/api/clock', (req, res) => {
     const userId = generateUserId(ip, userAgent);
     
     const stmt = db.prepare(`
-      INSERT INTO clock_records (user_id, status, ip_hash)
-      VALUES (?, ?, ?)
+      INSERT INTO clock_records (user_id, status, ip_hash, timestamp)
+      VALUES (?, ?, ?, datetime('now', 'localtime'))
     `);
     
     const result = stmt.run(userId, status, ip);
@@ -190,6 +187,18 @@ app.get('/api/user-status', (req, res) => {
     console.error('User status error:', error);
     res.status(500).json({ error: '服务器错误' });
   }
+});
+
+// 每天 0 点清空数据
+cron.schedule('0 0 * * *', () => {
+  try {
+    db.exec('DELETE FROM clock_records');
+    console.log('🧹 已清空昨日数据，新的一天开始！');
+  } catch (error) {
+    console.error('清空数据失败:', error);
+  }
+}, {
+  timezone: 'Asia/Shanghai'
 });
 
 // 启动服务器

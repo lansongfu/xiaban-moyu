@@ -2,23 +2,45 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#667eea">
+  <meta name="description" content="记录打工人的摸鱼、打工和下班时刻">
   <title>今天你下班了吗？</title>
   <style>
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    :root {
+      --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --card-bg: rgba(255, 255, 255, 0.95);
+      --text-primary: #333;
+      --text-secondary: #666;
+      --shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+      --btn-moyu: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      --btn-work: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      --btn-xiaban: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
     }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: var(--primary-gradient);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 20px;
+      padding: 15px;
+      transition: all 0.3s ease;
+    }
+
+    body.dark-mode {
+      --primary-gradient: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      --card-bg: rgba(30, 30, 50, 0.95);
+      --text-primary: #eee;
+      --text-secondary: #aaa;
     }
 
     .container {
@@ -26,115 +48,222 @@
       width: 100%;
     }
 
+    /* 头部 */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
     h1 {
       color: white;
-      text-align: center;
-      margin-bottom: 10px;
-      font-size: 2rem;
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+      font-size: 1.5rem;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+      font-weight: 700;
+    }
+
+    .theme-toggle {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+    }
+
+    .theme-toggle:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(1.1);
     }
 
     .current-time {
-      color: rgba(255,255,255,0.9);
+      color: rgba(255, 255, 255, 0.9);
       text-align: center;
-      margin-bottom: 30px;
-      font-size: 1.2rem;
+      margin-bottom: 20px;
+      font-size: 0.9rem;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 8px 15px;
+      border-radius: 20px;
+      backdrop-filter: blur(10px);
     }
 
+    /* 按钮区域 */
     .buttons {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 15px;
-      margin-bottom: 30px;
+      gap: 10px;
+      margin-bottom: 20px;
     }
 
     .status-btn {
       border: none;
-      border-radius: 20px;
-      padding: 25px 15px;
-      font-size: 1.1rem;
+      border-radius: 15px;
+      padding: 20px 10px;
+      font-size: 1rem;
       font-weight: bold;
       cursor: pointer;
       transition: all 0.3s ease;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
       color: white;
+      position: relative;
+      overflow: hidden;
     }
 
-    .status-btn:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+    .status-btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+      transition: left 0.5s ease;
+    }
+
+    .status-btn:hover::before {
+      left: 100%;
     }
 
     .status-btn:active {
-      transform: translateY(-2px);
+      transform: scale(0.95);
     }
 
     .btn-moyu {
-      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      background: var(--btn-moyu);
     }
 
     .btn-work {
-      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      background: var(--btn-work);
     }
 
     .btn-xiaban {
-      background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+      background: var(--btn-xiaban);
     }
 
+    .btn-moyu.active {
+      box-shadow: 0 0 20px rgba(245, 87, 108, 0.6);
+      transform: scale(1.05);
+    }
+
+    .btn-work.active {
+      box-shadow: 0 0 20px rgba(0, 242, 254, 0.6);
+      transform: scale(1.05);
+    }
+
+    .btn-xiaban.active {
+      box-shadow: 0 0 20px rgba(67, 233, 123, 0.6);
+      transform: scale(1.05);
+    }
+
+    /* 统计卡片 */
     .stats-card {
-      background: rgba(255,255,255,0.95);
+      background: var(--card-bg);
       border-radius: 20px;
-      padding: 25px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
     }
 
     .stats-title {
-      font-size: 1.3rem;
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: var(--text-primary);
+      margin-bottom: 15px;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .share-btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 15px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.3s ease;
+    }
+
+    .share-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .current-status {
+      background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+      padding: 12px;
+      border-radius: 12px;
+      margin-bottom: 15px;
+      text-align: center;
       font-weight: bold;
       color: #333;
-      margin-bottom: 20px;
-      text-align: center;
+      font-size: 0.95rem;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
     }
 
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 15px;
-      margin-bottom: 20px;
+      gap: 10px;
+      margin-bottom: 15px;
     }
 
     .stat-item {
       text-align: center;
-      padding: 15px;
+      padding: 12px 8px;
       background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
       border-radius: 12px;
+      transition: transform 0.3s ease;
+    }
+
+    .stat-item:hover {
+      transform: translateY(-3px);
     }
 
     .stat-number {
-      font-size: 2rem;
+      font-size: 1.8rem;
       font-weight: bold;
       color: #667eea;
       display: block;
     }
 
     .stat-label {
-      font-size: 0.9rem;
+      font-size: 0.8rem;
       color: #666;
-      margin-top: 5px;
+      margin-top: 4px;
       display: block;
     }
 
     .extra-stats {
-      border-top: 1px solid #eee;
-      padding-top: 20px;
-      margin-top: 20px;
+      border-top: 1px solid rgba(0, 0, 0, 0.1);
+      padding-top: 15px;
+      margin-top: 15px;
     }
 
     .extra-stat {
       display: flex;
       justify-content: space-between;
-      padding: 10px 0;
-      border-bottom: 1px solid #f0f0f0;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+      font-size: 0.9rem;
     }
 
     .extra-stat:last-child {
@@ -142,30 +271,106 @@
     }
 
     .extra-stat-label {
-      color: #666;
+      color: var(--text-secondary);
     }
 
     .extra-stat-value {
       font-weight: bold;
-      color: #333;
+      color: var(--text-primary);
     }
 
-    .current-status {
-      background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
-      padding: 15px;
-      border-radius: 12px;
-      margin-bottom: 20px;
-      text-align: center;
+    /* 分享弹窗 */
+    .share-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(5px);
+    }
+
+    .share-modal.show {
+      display: flex;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .share-content {
+      background: white;
+      border-radius: 20px;
+      padding: 25px;
+      max-width: 90%;
+      width: 350px;
+      animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(50px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .share-title {
+      font-size: 1.2rem;
       font-weight: bold;
+      text-align: center;
+      margin-bottom: 20px;
       color: #333;
     }
 
-    .loading {
-      text-align: center;
-      color: rgba(255,255,255,0.8);
-      padding: 20px;
+    .share-options {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }
 
+    .share-option {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 15px;
+      border: 2px solid #f0f0f0;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.95rem;
+      color: #333;
+    }
+
+    .share-option:hover {
+      border-color: #667eea;
+      background: rgba(102, 126, 234, 0.05);
+    }
+
+    .share-option-icon {
+      font-size: 1.5rem;
+    }
+
+    .share-close {
+      margin-top: 20px;
+      width: 100%;
+      padding: 12px;
+      background: #f0f0f0;
+      border: none;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .share-close:hover {
+      background: #e0e0e0;
+    }
+
+    /* 烟花动画 */
     @keyframes confetti {
       0% { transform: translateY(0) rotate(0deg); opacity: 1; }
       100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
@@ -175,27 +380,131 @@
       position: fixed;
       width: 10px;
       height: 10px;
-      background: #f00;
       animation: confetti 3s ease-out forwards;
+      z-index: 999;
+    }
+
+    /* 加载动画 */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      color: rgba(255, 255, 255, 0.8);
+      padding: 20px;
+    }
+
+    .loading-dot {
+      width: 8px;
+      height: 8px;
+      background: white;
+      border-radius: 50%;
+      animation: bounce 1.4s ease-in-out infinite;
+    }
+
+    .loading-dot:nth-child(2) { animation-delay: 0.2s; }
+    .loading-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes bounce {
+      0%, 80%, 100% { transform: scale(0); }
+      40% { transform: scale(1); }
+    }
+
+    /* Toast 提示 */
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 25px;
+      font-size: 0.9rem;
+      z-index: 2000;
+      transition: transform 0.3s ease;
+      backdrop-filter: blur(10px);
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* 响应式优化 */
+    @media (max-width: 480px) {
+      h1 {
+        font-size: 1.3rem;
+      }
+
+      .buttons {
+        gap: 8px;
+      }
+
+      .status-btn {
+        padding: 15px 8px;
+        font-size: 0.9rem;
+      }
+
+      .stat-number {
+        font-size: 1.5rem;
+      }
+
+      .stat-label {
+        font-size: 0.75rem;
+      }
+
+      .current-time {
+        font-size: 0.8rem;
+        padding: 6px 12px;
+      }
+    }
+
+    @media (max-width: 360px) {
+      .buttons {
+        grid-template-columns: 1fr;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>🎉 今天你下班了吗？</h1>
+    <!-- 头部 -->
+    <div class="header">
+      <h1>🎉 今天你下班了吗？</h1>
+      <button class="theme-toggle" onclick="toggleTheme()" title="切换主题">
+        🌙
+      </button>
+    </div>
+
+    <!-- 时间 -->
     <div class="current-time" id="currentTime">加载中...</div>
 
+    <!-- 打卡按钮 -->
     <div class="buttons">
       <button class="status-btn btn-moyu" onclick="clockIn('摸鱼')">🐟 摸鱼</button>
       <button class="status-btn btn-work" onclick="clockIn('打工中')">💼 打工中</button>
       <button class="status-btn btn-xiaban" onclick="clockIn('下班')">🏃 下班</button>
     </div>
 
+    <!-- 统计卡片 -->
     <div class="stats-card">
-      <div class="stats-title">📊 今日数据</div>
-      
+      <div class="stats-title">
+        📊 今日数据
+        <button class="share-btn" onclick="openShare()">
+          📤 分享
+        </button>
+      </div>
+
       <div class="current-status" id="currentStatus">
-        加载中...
+        <div class="loading">
+          <div class="loading-dot"></div>
+          <div class="loading-dot"></div>
+          <div class="loading-dot"></div>
+        </div>
       </div>
 
       <div class="stats-grid">
@@ -219,37 +528,78 @@
           <span class="extra-stat-value" id="earliest">-</span>
         </div>
         <div class="extra-stat">
-          <span class="extra-stat-label">😴 最晚下班</span>
-          <span class="extra-stat-value" id="latest">-</span>
-        </div>
-        <div class="extra-stat">
-          <span class="extra-stat-label">🎯 你的排名</span>
-          <span class="extra-stat-value" id="rank">-</span>
+          <span class="extra-stat-label">🔥 连续打卡</span>
+          <span class="extra-stat-value" id="streak">0 天</span>
         </div>
       </div>
     </div>
   </div>
 
+  <!-- 分享弹窗 -->
+  <div class="share-modal" id="shareModal">
+    <div class="share-content">
+      <div class="share-title">分享到</div>
+      <div class="share-options">
+        <div class="share-option" onclick="shareToQQ()">
+          <span class="share-option-icon">🐧</span>
+          <span>QQ 好友</span>
+        </div>
+        <div class="share-option" onclick="shareToWeChat()">
+          <span class="share-option-icon">💬</span>
+          <span>微信好友</span>
+        </div>
+        <div class="share-option" onclick="shareToWeibo()">
+          <span class="share-option-icon">🌐</span>
+          <span>微博</span>
+        </div>
+        <div class="share-option" onclick="copyLink()">
+          <span class="share-option-icon">🔗</span>
+          <span>复制链接</span>
+        </div>
+      </div>
+      <button class="share-close" onclick="closeShare()">取消</button>
+    </div>
+  </div>
+
+  <!-- Toast 提示 -->
+  <div class="toast" id="toast"></div>
+
   <script>
     const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
+    let currentStats = null;
 
-    // 更新时间（使用 Asia/Shanghai 时区）
+    // 更新时间
     function updateTime() {
       const now = new Date();
-      const timeStr = now.toLocaleTimeString('zh-CN', { 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        second: '2-digit',
+      const timeStr = now.toLocaleTimeString('zh-CN', {
+        hour: '2-digit',
+        minute: '2-digit',
         timeZone: 'Asia/Shanghai'
       });
-      const dateStr = now.toLocaleDateString('zh-CN', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
+      const dateStr = now.toLocaleDateString('zh-CN', {
+        weekday: 'short',
+        month: 'long',
         day: 'numeric',
         timeZone: 'Asia/Shanghai'
       });
       document.getElementById('currentTime').textContent = `${dateStr} ${timeStr}`;
+    }
+
+    // 切换主题
+    function toggleTheme() {
+      document.body.classList.toggle('dark-mode');
+      const btn = document.querySelector('.theme-toggle');
+      btn.textContent = document.body.classList.contains('dark-mode') ? '☀️' : '🌙';
+      localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
+    }
+
+    // 加载主题偏好
+    function loadTheme() {
+      const isDark = localStorage.getItem('darkMode') === 'true';
+      if (isDark) {
+        document.body.classList.add('dark-mode');
+        document.querySelector('.theme-toggle').textContent = '☀️';
+      }
     }
 
     // 打卡
@@ -260,21 +610,25 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status })
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
+          // 更新按钮状态
+          document.querySelectorAll('.status-btn').forEach(btn => btn.classList.remove('active'));
+          event.target.classList.add('active');
+
           // 放烟花动画
           createConfetti();
           // 更新状态
-          document.getElementById('currentStatus').textContent = `你当前状态：${status}`;
-          document.getElementById('rank').textContent = result.rank ? `第 ${result.rank} 个` : '-';
+          document.getElementById('currentStatus').textContent = `✅ 你当前状态：${status}`;
+          showToast(`打卡成功！${status}`);
           // 刷新数据
           loadStats();
         }
       } catch (error) {
         console.error('Clock in error:', error);
-        alert('打卡失败，请重试');
+        showToast('打卡失败，请重试');
       }
     }
 
@@ -283,30 +637,25 @@
       try {
         const response = await fetch(`${API_BASE}/api/stats`);
         const result = await response.json();
-        
+
         if (result.success) {
-          const data = result.data;
-          document.getElementById('moyuCount').textContent = data.moyu;
-          document.getElementById('workCount').textContent = data.work;
-          document.getElementById('xiabanCount').textContent = data.xiaban;
-          
-          if (data.earliest) {
-            const time = new Date(data.earliest.time).toLocaleTimeString('zh-CN', { 
-              hour: '2-digit', 
+          currentStats = result.data;
+          document.getElementById('moyuCount').textContent = currentStats.moyu;
+          document.getElementById('workCount').textContent = currentStats.work;
+          document.getElementById('xiabanCount').textContent = currentStats.xiaban;
+
+          if (currentStats.earliest) {
+            const time = new Date(currentStats.earliest.time).toLocaleTimeString('zh-CN', {
+              hour: '2-digit',
               minute: '2-digit',
               timeZone: 'Asia/Shanghai'
             });
-            document.getElementById('earliest').textContent = `${time} - ${data.earliest.location}(${data.earliest.ipShort})`;
+            document.getElementById('earliest').textContent = time;
           }
-          
-          if (data.latest) {
-            const time = new Date(data.latest.time).toLocaleTimeString('zh-CN', { 
-              hour: '2-digit', 
-              minute: '2-digit',
-              timeZone: 'Asia/Shanghai'
-            });
-            document.getElementById('latest').textContent = `${time} - ${data.latest.location}(${data.latest.ipShort})`;
-          }
+
+          // 模拟连续打卡天数（实际应从后端获取）
+          const streak = localStorage.getItem('streak') || 0;
+          document.getElementById('streak').textContent = `${streak} 天`;
         }
       } catch (error) {
         console.error('Load stats error:', error);
@@ -318,9 +667,17 @@
       try {
         const response = await fetch(`${API_BASE}/api/user-status`);
         const result = await response.json();
-        
+
         if (result.success && result.data) {
-          document.getElementById('currentStatus').textContent = `你当前状态：${result.data.status}`;
+          document.getElementById('currentStatus').textContent = `✅ 你当前状态：${result.data.status}`;
+
+          // 高亮对应按钮
+          document.querySelectorAll('.status-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.textContent.includes(result.data.status)) {
+              btn.classList.add('active');
+            }
+          });
         } else {
           document.getElementById('currentStatus').textContent = '点击按钮开始打卡';
         }
@@ -329,27 +686,82 @@
       }
     }
 
-    // 放烟花动画
+    // 分享功能
+    function openShare() {
+      document.getElementById('shareModal').classList.add('show');
+    }
+
+    function closeShare() {
+      document.getElementById('shareModal').classList.remove('show');
+    }
+
+    function shareToQQ() {
+      const text = encodeURIComponent(`今天 ${currentStats?.xiaban || 0} 人已经下班了！最早下班的是 ${document.getElementById('earliest').textContent}！快来看看你的下班时间吧～`);
+      const url = encodeURIComponent(window.location.href);
+      window.open(`http://connect.qq.com/widget/shareqq/index.html?url=${url}&desc=${text}`, '_blank');
+      closeShare();
+    }
+
+    function shareToWeChat() {
+      copyLink();
+      showToast('链接已复制，可粘贴到微信分享');
+      closeShare();
+    }
+
+    function shareToWeibo() {
+      const text = encodeURIComponent(`今天 ${currentStats?.xiaban || 0} 人已经下班了！最早下班的是 ${document.getElementById('earliest').textContent}！`);
+      const url = encodeURIComponent(window.location.href);
+      window.open(`https://service.weibo.com/share/share.php?url=${url}&title=${text}`, '_blank');
+      closeShare();
+    }
+
+    function copyLink() {
+      navigator.clipboard.writeText(window.location.href).then(() => {
+        showToast('链接已复制！');
+      }).catch(() => {
+        showToast('复制失败，请手动复制');
+      });
+      closeShare();
+    }
+
+    // Toast 提示
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+
+    // 烟花动画
     function createConfetti() {
-      const colors = ['#f00', '#0f0', '#00f', '#ff0', '#0ff', '#f0f'];
-      for (let i = 0; i < 50; i++) {
+      const colors = ['#f00', '#0f0', '#00f', '#ff0', '#0ff', '#f0f', '#f90', '#90f'];
+      for (let i = 0; i < 60; i++) {
         const confetti = document.createElement('div');
         confetti.className = 'confetti';
         confetti.style.left = Math.random() * 100 + 'vw';
         confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
         confetti.style.animationDelay = Math.random() * 2 + 's';
+        confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
         document.body.appendChild(confetti);
-        
+
         setTimeout(() => confetti.remove(), 5000);
       }
     }
 
     // 初始化
+    loadTheme();
     updateTime();
     setInterval(updateTime, 1000);
     loadStats();
     loadUserStatus();
-    setInterval(loadStats, 5000); // 每 5 秒刷新一次
+    setInterval(loadStats, 5000);
+
+    // 点击弹窗外部关闭
+    document.getElementById('shareModal').addEventListener('click', (e) => {
+      if (e.target.id === 'shareModal') {
+        closeShare();
+      }
+    });
   </script>
 </body>
 </html>
