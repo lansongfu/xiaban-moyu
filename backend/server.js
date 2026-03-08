@@ -189,13 +189,106 @@ app.get('/api/user-status', (req, res) => {
   }
 });
 
-// 每天 0 点清空数据
+// API: 获取周统计数据（最近7天）
+app.get('/api/stats/weekly', (req, res) => {
+  try {
+    const dailyTrend = db.prepare(`
+      SELECT 
+        DATE(timestamp) as date,
+        SUM(CASE WHEN status = '摸鱼' THEN 1 ELSE 0 END) as moyu,
+        SUM(CASE WHEN status = '打工中' THEN 1 ELSE 0 END) as work,
+        SUM(CASE WHEN status = '下班' THEN 1 ELSE 0 END) as xiaban
+      FROM clock_records
+      WHERE DATE(timestamp) >= DATE('now', '-6 days')
+      GROUP BY DATE(timestamp)
+      ORDER BY date ASC
+    `).all();
+
+    // 状态分布统计
+    const statusDist = db.prepare(`
+      SELECT status, COUNT(*) as count
+      FROM clock_records
+      WHERE DATE(timestamp) >= DATE('now', '-6 days')
+      GROUP BY status
+    `).all();
+
+    res.json({
+      success: true,
+      data: {
+        dailyTrend: dailyTrend.map(d => ({
+          date: d.date,
+          moyu: d.moyu,
+          work: d.work,
+          xiaban: d.xiaban
+        })),
+        statusDistribution: {
+          moyu: statusDist.find(s => s.status === '摸鱼')?.count || 0,
+          work: statusDist.find(s => s.status === '打工中')?.count || 0,
+          xiaban: statusDist.find(s => s.status === '下班')?.count || 0
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Weekly stats error:', error);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// API: 获取月统计数据（最近30天）
+app.get('/api/stats/monthly', (req, res) => {
+  try {
+    const dailyTrend = db.prepare(`
+      SELECT 
+        DATE(timestamp) as date,
+        SUM(CASE WHEN status = '摸鱼' THEN 1 ELSE 0 END) as moyu,
+        SUM(CASE WHEN status = '打工中' THEN 1 ELSE 0 END) as work,
+        SUM(CASE WHEN status = '下班' THEN 1 ELSE 0 END) as xiaban
+      FROM clock_records
+      WHERE DATE(timestamp) >= DATE('now', '-29 days')
+      GROUP BY DATE(timestamp)
+      ORDER BY date ASC
+    `).all();
+
+    // 状态分布统计
+    const statusDist = db.prepare(`
+      SELECT status, COUNT(*) as count
+      FROM clock_records
+      WHERE DATE(timestamp) >= DATE('now', '-29 days')
+      GROUP BY status
+    `).all();
+
+    res.json({
+      success: true,
+      data: {
+        dailyTrend: dailyTrend.map(d => ({
+          date: d.date,
+          moyu: d.moyu,
+          work: d.work,
+          xiaban: d.xiaban
+        })),
+        statusDistribution: {
+          moyu: statusDist.find(s => s.status === '摸鱼')?.count || 0,
+          work: statusDist.find(s => s.status === '打工中')?.count || 0,
+          xiaban: statusDist.find(s => s.status === '下班')?.count || 0
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Monthly stats error:', error);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// 每天清理超过 90 天的数据（保留历史用于统计）
 cron.schedule('0 0 * * *', () => {
   try {
-    db.exec('DELETE FROM clock_records');
-    console.log('🧹 已清空昨日数据，新的一天开始！');
+    const result = db.prepare(`
+      DELETE FROM clock_records 
+      WHERE DATE(timestamp) < DATE('now', '-90 days')
+    `).run();
+    console.log(`🧹 已清理 ${result.changes} 条过期数据（保留近90天）`);
   } catch (error) {
-    console.error('清空数据失败:', error);
+    console.error('清理数据失败:', error);
   }
 }, {
   timezone: 'Asia/Shanghai'

@@ -6,6 +6,8 @@
   <meta name="theme-color" content="#667eea">
   <meta name="description" content="记录打工人的摸鱼、打工和下班时刻">
   <title>今天你下班了吗？</title>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
     * {
       margin: 0;
@@ -468,6 +470,117 @@
         grid-template-columns: 1fr;
       }
     }
+
+    /* 统计报表样式 */
+    .chart-card {
+      background: var(--card-bg);
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      margin-top: 20px;
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .chart-title {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: var(--text-primary);
+    }
+
+    .chart-tabs {
+      display: flex;
+      gap: 8px;
+    }
+
+    .chart-tab {
+      padding: 6px 16px;
+      border: 2px solid #667eea;
+      background: transparent;
+      color: #667eea;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .chart-tab.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .chart-tab:hover:not(.active) {
+      background: rgba(102, 126, 234, 0.1);
+    }
+
+    .chart-container {
+      position: relative;
+      height: 250px;
+      margin-bottom: 20px;
+    }
+
+    .chart-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+
+    .chart-box {
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      border-radius: 12px;
+      padding: 15px;
+      height: 200px;
+    }
+
+    .chart-box-title {
+      font-size: 0.9rem;
+      color: #666;
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+
+    body.dark-mode .chart-tab {
+      border-color: #a78bfa;
+      color: #a78bfa;
+    }
+
+    body.dark-mode .chart-tab.active {
+      background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%);
+      color: white;
+    }
+
+    body.dark-mode .chart-box {
+      background: linear-gradient(135deg, #2d2d44 0%, #1a1a2e 100%);
+    }
+
+    body.dark-mode .chart-box-title {
+      color: #aaa;
+    }
+
+    @media (max-width: 480px) {
+      .chart-header {
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .chart-row {
+        grid-template-columns: 1fr;
+      }
+
+      .chart-container {
+        height: 200px;
+      }
+
+      .chart-box {
+        height: 180px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -533,6 +646,30 @@
         </div>
       </div>
     </div>
+
+    <!-- 统计报表 -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-title">📈 统计报表</span>
+        <div class="chart-tabs">
+          <button class="chart-tab active" onclick="switchChartPeriod('weekly')">周统计</button>
+          <button class="chart-tab" onclick="switchChartPeriod('monthly')">月统计</button>
+        </div>
+      </div>
+      <div class="chart-container">
+        <canvas id="trendChart"></canvas>
+      </div>
+      <div class="chart-row">
+        <div class="chart-box">
+          <div class="chart-box-title">状态分布</div>
+          <canvas id="distChart"></canvas>
+        </div>
+        <div class="chart-box">
+          <div class="chart-box-title">下班趋势</div>
+          <canvas id="xiabanChart"></canvas>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- 分享弹窗 -->
@@ -567,6 +704,10 @@
   <script>
     const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
     let currentStats = null;
+    let currentPeriod = 'weekly';
+    let trendChart = null;
+    let distChart = null;
+    let xiabanChart = null;
 
     // 更新时间
     function updateTime() {
@@ -754,6 +895,7 @@
     setInterval(updateTime, 1000);
     loadStats();
     loadUserStatus();
+    loadChartData();
     setInterval(loadStats, 5000);
 
     // 点击弹窗外部关闭
@@ -762,6 +904,180 @@
         closeShare();
       }
     });
+
+    // 图表相关函数
+    function switchChartPeriod(period) {
+      currentPeriod = period;
+      document.querySelectorAll('.chart-tab').forEach(tab => tab.classList.remove('active'));
+      event.target.classList.add('active');
+      loadChartData();
+    }
+
+    async function loadChartData() {
+      try {
+        const response = await fetch(`${API_BASE}/api/stats/${currentPeriod}`);
+        const result = await response.json();
+
+        if (result.success) {
+          renderTrendChart(result.data.dailyTrend);
+          renderDistChart(result.data.statusDistribution);
+          renderXiabanChart(result.data.dailyTrend);
+        }
+      } catch (error) {
+        console.error('Load chart data error:', error);
+      }
+    }
+
+    function formatDate(dateStr) {
+      const date = new Date(dateStr);
+      return `${date.getMonth() + 1}/${date.getDate()}`;
+    }
+
+    function renderTrendChart(data) {
+      const ctx = document.getElementById('trendChart').getContext('2d');
+      
+      if (trendChart) {
+        trendChart.destroy();
+      }
+
+      const labels = data.map(d => formatDate(d.date));
+      const isDark = document.body.classList.contains('dark-mode');
+      const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+      const textColor = isDark ? '#ccc' : '#666';
+
+      trendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: '摸鱼',
+              data: data.map(d => d.moyu),
+              borderColor: '#f5576c',
+              backgroundColor: 'rgba(245, 87, 108, 0.1)',
+              tension: 0.3,
+              fill: true
+            },
+            {
+              label: '打工中',
+              data: data.map(d => d.work),
+              borderColor: '#4facfe',
+              backgroundColor: 'rgba(79, 172, 254, 0.1)',
+              tension: 0.3,
+              fill: true
+            },
+            {
+              label: '下班',
+              data: data.map(d => d.xiaban),
+              borderColor: '#43e97b',
+              backgroundColor: 'rgba(67, 233, 123, 0.1)',
+              tension: 0.3,
+              fill: true
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: { color: textColor, usePointStyle: true }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: gridColor },
+              ticks: { color: textColor }
+            },
+            y: {
+              grid: { color: gridColor },
+              ticks: { color: textColor },
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+
+    function renderDistChart(data) {
+      const ctx = document.getElementById('distChart').getContext('2d');
+      
+      if (distChart) {
+        distChart.destroy();
+      }
+
+      const isDark = document.body.classList.contains('dark-mode');
+      const textColor = isDark ? '#ccc' : '#666';
+
+      distChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['摸鱼', '打工中', '下班'],
+          datasets: [{
+            data: [data.moyu, data.work, data.xiaban],
+            backgroundColor: ['#f5576c', '#4facfe', '#43e97b'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: textColor, usePointStyle: true, padding: 10 }
+            }
+          }
+        }
+      });
+    }
+
+    function renderXiabanChart(data) {
+      const ctx = document.getElementById('xiabanChart').getContext('2d');
+      
+      if (xiabanChart) {
+        xiabanChart.destroy();
+      }
+
+      const labels = data.map(d => formatDate(d.date));
+      const isDark = document.body.classList.contains('dark-mode');
+      const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+      const textColor = isDark ? '#ccc' : '#666';
+
+      xiabanChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: '下班人数',
+            data: data.map(d => d.xiaban),
+            backgroundColor: 'rgba(67, 233, 123, 0.7)',
+            borderColor: '#43e97b',
+            borderWidth: 1,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { color: textColor }
+            },
+            y: {
+              grid: { color: gridColor },
+              ticks: { color: textColor },
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
   </script>
 </body>
 </html>
